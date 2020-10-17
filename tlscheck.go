@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/mail"
+	"net/smtp"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/scorredoira/email"
 )
 
 var (
@@ -41,7 +44,7 @@ func check(server string, width int) {
 
 func handleError(server string, badcert string) {
 	//open log file
-	f, err := os.OpenFile("testlogfile.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile("CertErrors.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != err {
 		log.Fatalf("error opening file %v", err)
 	}
@@ -56,7 +59,7 @@ func main() {
 	// parse command-line args
 	flag.Parse()
 	if flag.NArg() == 0 && len(*file) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: certchk [-f file] servername ...\n")
+		fmt.Fprintf(os.Stderr, "Usage: tlscheck [-f file] servername ...\n")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -78,6 +81,7 @@ func main() {
 	for _, name := range names {
 		check(name, width)
 	}
+	//sendAlert()
 }
 
 func getNames() (names []string) {
@@ -106,4 +110,19 @@ func getNames() (names []string) {
 	// add names specified on the command line
 	names = append(names, flag.Args()...)
 	return
+}
+
+func sendAlert() {
+	msg := email.NewMessage("SSL Cert Issue Found", "View attachment for full log of errors")
+	msg.From = mail.Address{Name: "From", Address: "from@example.com"}
+	msg.To = []string{"to@example.com"}
+
+	if err := msg.Attach("CertErrors.txt"); err != nil {
+		log.Fatal(err)
+	}
+
+	auth := smtp.PlainAuth("", "from@example.com", "pwd", "smtp.zoho.com")
+	if err := email.Send("smtp.zoho.com:587", auth, msg); err != nil {
+		log.Fatal(err)
+	}
 }
