@@ -19,13 +19,15 @@ import (
 
 var (
 	dialer = &net.Dialer{Timeout: 5 * time.Second}
-	file   = flag.String("f", "", "read server names from `file`")
+	file = flag.String("f", "", "read server names from `file`")
+	alertFlag = 0
 )
 
 func check(server string, width int) {
 	conn, err := tls.DialWithDialer(dialer, "tcp", server+":443", nil)
 	if err != nil {
-		handleError(server, err.Error())
+		alertFlag++
+		go handleError(server, err.Error())
 		return
 	}
 	defer conn.Close()
@@ -81,7 +83,12 @@ func main() {
 	for _, name := range names {
 		check(name, width)
 	}
-	//sendAlert()
+
+	if alertFlag == 0 {
+		return
+	} else {
+		sendAlert()
+	}
 }
 
 func getNames() (names []string) {
